@@ -254,21 +254,24 @@ if __name__ == '__main__':
 					help="Type of visualization", choices=['matplotlib'], default='matplotlib') #choices=['open3d', 'matplotlib']
 	ap.add_argument("-unconstrained", action="store_true", default=False,
 					help="use mano constraints")
+	ap.add_argument("-pickle", type=str, required=False,
+					help="direct path to pose pickle")
 	args = vars(ap.parse_args())
 
 	# YCBModelsDir = args['ycbModels_path']
 	
 	# some checks to decide if visualizing default pose or specific ho3d sample
-	if not all([args['ho3d_path'], args['seq'], args['id'], args['split']]):
-		if any([args['ho3d_path'], args['seq'], args['id'], args['split']]):
-			logging.warn('Not all parameters for HO3D set. Visualizing default pose.')
+	if all([args['ho3d_path'], args['seq'], args['id'], args['split']]):
+		anno = read_annotation(args['ho3d_path'], args['seq'], args['id'], args['split'])
+	elif args['pickle'] is not None and os.path.exists(args['pickle']):
+		anno = load_pickle_data(args['pickle'])
+	else:
+		logging.warn('Not all parameters for specific HO3D sample specified. Visualizing default pose.')
 		anno = {
 			'handPose': np.zeros((48)),
 			'handTrans': np.zeros((3)),
 			'handBeta': np.zeros((10))
 		}	
-	else:
-		anno = read_annotation(args['ho3d_path'], args['seq'], args['id'], args['split'])
 
 	constraints = Constraints()
 	thetas = constraints.get_thetas(unconstrained=args['unconstrained'])
