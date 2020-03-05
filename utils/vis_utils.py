@@ -191,7 +191,7 @@ def cam_equal_aspect_3d(ax, verts, flip_x=False):
     ax.set_ylim(centers[1] + r, centers[1] - r)
     ax.set_zlim(centers[2] + r, centers[2] - r)
 
-def plot3dVisualize(ax, m, flip_x=False, c="b", alpha=0.1, camPose=np.eye(4, dtype=np.float32), isOpenGLCoords=False):
+def plot3dVisualize(ax, m, flip_x=False, c="b", alpha=0.1, camPose=np.eye(4, dtype=np.float32), isOpenGLCoords=False, elev_azim=(90,-90)):
     '''
     Create 3D visualization
     :param ax: matplotlib axis
@@ -218,7 +218,8 @@ def plot3dVisualize(ax, m, flip_x=False, c="b", alpha=0.1, camPose=np.eye(4, dty
         verts = verts.dot(coordChangeMat.T)
 
     faces = np.copy(m.f)
-    ax.view_init(elev=90, azim=-90)
+    if elev_azim is not None:
+        ax.view_init(elev=elev_azim[0], azim=elev_azim[1])
     mesh = Poly3DCollection(verts[faces], alpha=alpha)
     if c == "b":
         face_color = (141 / 255, 184 / 255, 226 / 255)
