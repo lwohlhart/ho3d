@@ -191,7 +191,8 @@ def cam_equal_aspect_3d(ax, verts, flip_x=False):
     ax.set_ylim(centers[1] + r, centers[1] - r)
     ax.set_zlim(centers[2] + r, centers[2] - r)
 
-def plot3dVisualize(ax, m, flip_x=False, c="b", alpha=0.1, camPose=np.eye(4, dtype=np.float32), isOpenGLCoords=False, elev_azim=(90,-90)):
+def plot3dVisualize(ax, m, flip_x=False, c="b", alpha=0.1, camPose=np.eye(4, dtype=np.float32), isOpenGLCoords=False,
+                    elevAzim=(90,-90), vertScale=1000.0, equalAspect=True):
     '''
     Create 3D visualization
     :param ax: matplotlib axis
@@ -205,9 +206,9 @@ def plot3dVisualize(ax, m, flip_x=False, c="b", alpha=0.1, camPose=np.eye(4, dty
     '''
     from mpl_toolkits.mplot3d.art3d import Poly3DCollection
     if hasattr(m, 'r'):
-        verts = np.copy(m.r)*1000
+        verts = np.copy(m.r) * vertScale
     elif hasattr(m, 'v'):
-        verts = np.copy(m.v) * 1000
+        verts = np.copy(m.v) * vertScale
     else:
         raise Exception('Unknown Mesh format')
     vertsHomo = np.concatenate([verts, np.ones((verts.shape[0],1), dtype=np.float32)], axis=1)
@@ -218,8 +219,8 @@ def plot3dVisualize(ax, m, flip_x=False, c="b", alpha=0.1, camPose=np.eye(4, dty
         verts = verts.dot(coordChangeMat.T)
 
     faces = np.copy(m.f)
-    if elev_azim is not None:
-        ax.view_init(elev=elev_azim[0], azim=elev_azim[1])
+    if elevAzim is not None:
+        ax.view_init(elev=elevAzim[0], azim=elevAzim[1])
     mesh = Poly3DCollection(verts[faces], alpha=alpha)
     if c == "b":
         face_color = (141 / 255, 184 / 255, 226 / 255)
@@ -244,7 +245,8 @@ def plot3dVisualize(ax, m, flip_x=False, c="b", alpha=0.1, camPose=np.eye(4, dty
     mesh.set_edgecolor(edge_color)
     mesh.set_facecolor(face_color)
     ax.add_collection3d(mesh)
-    cam_equal_aspect_3d(ax, verts, flip_x=flip_x)
+    if equalAspect:
+        cam_equal_aspect_3d(ax, verts, flip_x=flip_x)
     # plt.tight_layout()
 
 class Minimal(object):

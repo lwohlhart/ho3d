@@ -326,10 +326,12 @@ if __name__ == '__main__':
 
 		# show 3D hand mesh
 		ax2 = fig.add_subplot(1, 2, 1, projection="3d")
-		plot3dVisualize(ax2, handMesh, flip_x=False, isOpenGLCoords=False, c="viridis", elev_azim=(90,-90))
+		plot3dVisualize(ax2, handMesh, flip_x=False, isOpenGLCoords=False, c="viridis", elevAzim=(90,-90), vertScale=1.0, equalAspect=False)
+		ax2.set_xlim(-0.1, 0.1); ax2.set_ylim(-0.1, 0.1); ax2.set_zlim(-0.1, 0.1)
 
 		ax3 = fig.add_subplot(1, 2, 2, projection="3d")
-		plot3dVisualize(ax3, handMesh, flip_x=False, isOpenGLCoords=False, c="viridis", elev_azim=(0,-90))
+		plot3dVisualize(ax3, handMesh, flip_x=False, isOpenGLCoords=False, c="viridis", elevAzim=(0,-90), vertScale=1.0, equalAspect=False)
+		ax3.set_xlim(-0.1, 0.1); ax3.set_ylim(-0.1, 0.1); ax3.set_zlim(-0.1, 0.1)
 
 		pose_sliders = []
 
@@ -363,8 +365,10 @@ if __name__ == '__main__':
 
 
 			# print(handJoints3D)
-			plot3dVisualize(ax2, handMesh, flip_x=False, isOpenGLCoords=False, c='viridis', elev_azim=None)
-			plot3dVisualize(ax3, handMesh, flip_x=False, isOpenGLCoords=False, c='viridis', elev_azim=None)
+			plot3dVisualize(ax2, handMesh, flip_x=False, isOpenGLCoords=False, c='viridis', elevAzim=None, vertScale=1.0, equalAspect=False)
+			ax2.set_xlim(-0.1, 0.1); ax2.set_ylim(-0.1, 0.1); ax2.set_zlim(-0.1, 0.1)
+			plot3dVisualize(ax3, handMesh, flip_x=False, isOpenGLCoords=False, c='viridis', elevAzim=None, vertScale=1.0, equalAspect=False)
+			ax3.set_xlim(-0.1, 0.1); ax3.set_ylim(-0.1, 0.1); ax3.set_zlim(-0.1, 0.1)
 			fig.canvas.draw_idle()
 
 		drawHandPose(anno)
