@@ -55,6 +55,21 @@ if not os.path.exists(MANO_MODEL_PATH):
 else:
 	from mano.webuser.smpl_handpca_wrapper_HAND_only import load_model
 
+from matplotlib.patches import FancyArrowPatch
+from mpl_toolkits.mplot3d import proj3d
+
+class Arrow3D(FancyArrowPatch):
+	def __init__(self, xs, ys, zs, tf=np.eye(4), *args, **kwargs):
+		FancyArrowPatch.__init__(self, (0, 0), (0, 0), *args, **kwargs)
+		self._verts3d = xs, ys, zs
+		self._tf = tf
+
+	def draw(self, renderer):
+		xs3d, ys3d, zs3d = self._verts3d
+		#self._tf
+		xs, ys, zs = proj3d.proj_transform(xs3d, ys3d, zs3d, np.dot(renderer.M, self._tf))
+		self.set_positions((xs[0], ys[0]), (xs[1], ys[1]))
+		FancyArrowPatch.draw(self, renderer)
 
 
 class Constraints():
@@ -150,6 +165,10 @@ class Constraints():
 		# values beyond 1.5 are hard to reach with a real pinky
 		thetas['pinky_2_pitch']['max'] = 1.5
 		
+		# apparently the pinky_2 need negative pitch values to fully stretch out in certain configurations
+		thetas['pinky_2_pitch']['min'] = -0.25
+		thetas['pinky_3_pitch']['min'] = -0.25
+
 		# because ring_3 axis doesn't allow for simple curling the finer tip by pitch adjustment without also adjusting yaw
 		thetas['ring_3_yaw']['min'] = -0.4
 		thetas['ring_3_yaw']['max']= 0.0
@@ -203,7 +222,7 @@ class Constraints():
 		return validThetaIDs, invalidThetaIDs, minThetaVals, maxThetaVals
 
 
-
+m = load_model(MANO_MODEL_PATH, ncomps=6, flat_hand_mean=True)
 
 def forwardKinematics(fullpose, trans, beta):
 	'''
@@ -218,7 +237,6 @@ def forwardKinematics(fullpose, trans, beta):
 	assert trans.shape == (3,)
 	assert beta.shape == (10,)
 
-	m = load_model(MANO_MODEL_PATH, ncomps=6, flat_hand_mean=True)
 	m.fullpose[:] = fullpose
 	m.trans[:] = trans
 	m.betas[:] = beta
@@ -256,7 +274,13 @@ if __name__ == '__main__':
 					help="use mano constraints")
 	ap.add_argument("-pickle", type=str, required=False,
 					help="direct path to pose pickle")
+	ap.add_argument("-constraints", type=str, required=False,
+					help="custom constraint updates")
+	ap.add_argument("-v", "--verbose", action="store_true", default=False,
+					help="print verbose information")
 	args = vars(ap.parse_args())
+	if args['verbose']:
+		logging.basicConfig(level=logging.INFO)
 
 	# YCBModelsDir = args['ycbModels_path']
 	
@@ -273,8 +297,24 @@ if __name__ == '__main__':
 			'handBeta': np.zeros((10))
 		}	
 
+	# just to load temporary pickle results
+	if 'handPose' not in anno:
+		anno['handPose'] = anno['fullpose']
+	if 'handTrans' not in anno:
+		anno['handTrans'] = anno['trans']
+	if 'handBeta' not in anno:
+		anno['handBeta'] = anno['beta']
+
 	constraints = Constraints()
 	thetas = constraints.get_thetas(unconstrained=args['unconstrained'])
+
+	if args['constraints']:
+		import json
+		constraint_updates = json.loads(args['constraints'])
+		for theta_name, theta_updates in constraint_updates.items():
+			thetas[theta_name].update(theta_updates)
+		print('updated constraints', constraint_updates)
+
 
 	# Visualize
 	if args['visType'] == 'matplotlib':
@@ -286,10 +326,10 @@ if __name__ == '__main__':
 
 		# show 3D hand mesh
 		ax2 = fig.add_subplot(1, 2, 1, projection="3d")
-		plot3dVisualize(ax2, handMesh, flip_x=False, isOpenGLCoords=True, c="viridis", elev_azim=(90,-90))
+		plot3dVisualize(ax2, handMesh, flip_x=False, isOpenGLCoords=False, c="viridis", elev_azim=(90,-90))
 
 		ax3 = fig.add_subplot(1, 2, 2, projection="3d")
-		plot3dVisualize(ax3, handMesh, flip_x=False, isOpenGLCoords=True, c="viridis", elev_azim=(0,-90))
+		plot3dVisualize(ax3, handMesh, flip_x=False, isOpenGLCoords=False, c="viridis", elev_azim=(0,-90))
 
 		pose_sliders = []
 
@@ -297,15 +337,37 @@ if __name__ == '__main__':
 			for pose_index, slider in pose_sliders:
 				anno['handPose'][pose_index] = slider.val
 			drawHandPose(anno)
-				
+
+		def drawCoordinateFrame(ax, transformation_m, scale=0.02):
+
+			a = Arrow3D([0, scale], [0, 0], [0, 0], tf=transformation_m, mutation_scale=20, arrowstyle='->', shrinkA=0, shrinkB=0, color='r')
+			ax.add_artist(a)
+			a = Arrow3D([0, 0], [0, scale], [0, 0], tf=transformation_m, mutation_scale=20, arrowstyle='->', shrinkA=0, shrinkB=0, color='g')
+			ax.add_artist(a)
+			a = Arrow3D([0, 0], [0, 0], [0, scale], tf=transformation_m, mutation_scale=20, arrowstyle='->', shrinkA=0, shrinkB=0, color='b')
+			ax.add_artist(a)
+
+
 		def drawHandPose(anno):				
 			ax2.clear()
 			ax3.clear()
+
 			handJoints3D, handMesh = forwardKinematics(anno['handPose'], anno['handTrans'], anno['handBeta'])
-			plot3dVisualize(ax2, handMesh, flip_x=False, isOpenGLCoords=True, c='viridis', elev_azim=None)
-			plot3dVisualize(ax3, handMesh, flip_x=False, isOpenGLCoords=True, c='viridis', elev_azim=None)
+
+			arrow_prop_dict = dict(mutation_scale=20, arrowstyle='->', shrinkA=0, shrinkB=0)
+
+			#for i in range(1, handMesh.A.shape[2]):
+			for frame in handMesh.A_global:
+				drawCoordinateFrame(ax2, np.array(frame))
+				drawCoordinateFrame(ax3, np.array(frame))
+
+
+			# print(handJoints3D)
+			plot3dVisualize(ax2, handMesh, flip_x=False, isOpenGLCoords=False, c='viridis', elev_azim=None)
+			plot3dVisualize(ax3, handMesh, flip_x=False, isOpenGLCoords=False, c='viridis', elev_azim=None)
 			fig.canvas.draw_idle()
 
+		drawHandPose(anno)
 
 		for index, theta_description  in enumerate(thetas.items()[:3]):
 			theta_name, theta = theta_description
@@ -315,6 +377,12 @@ if __name__ == '__main__':
 			pose_slider.on_changed(update)
 			pose_sliders.append((pose_index, pose_slider))
 
+			pose_value = anno['handPose'][pose_index]
+			pose_string = '{0:2} {1: >15}: {2:8.5f}'.format(pose_index, theta_name, pose_value)
+			if np.clip(pose_value, theta['min'], theta['max']) != pose_value:
+				pose_string += ' not in bounds {0:5.3f}, {1:5.3f}'.format(theta['min'], theta['max'])
+			logging.info(pose_string)
+
 		for index, theta_description  in enumerate(thetas.items()[3:]):
 			theta_name, theta = theta_description
 			column_index = index // 9
@@ -322,6 +390,12 @@ if __name__ == '__main__':
 			pose_index, pose_slider = add_pose_slider(theta_name, theta, column_index, row_index)
 			pose_slider.on_changed(update)
 			pose_sliders.append((pose_index, pose_slider))
+
+			pose_value = anno['handPose'][pose_index]
+			pose_string = '{0:2} {1: >15}: {2:8.5f}'.format(pose_index, theta_name, pose_value)
+			if np.clip(pose_value, theta['min'], theta['max']) != pose_value:
+				pose_string += ' not in bounds {0:5.3f}, {1:5.3f}'.format(theta['min'], theta['max'])
+			logging.info(pose_string)
 
 		plt.show()
 	else:
