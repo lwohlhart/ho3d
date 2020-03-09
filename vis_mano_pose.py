@@ -373,7 +373,7 @@ if __name__ == '__main__':
 
 		drawHandPose(anno)
 
-		for index, theta_description  in enumerate(thetas.items()[:3]):
+		for index, theta_description  in enumerate(list(thetas.items())[:3]):
 			theta_name, theta = theta_description
 			column_index = index // 9
 			row_index = index - 9 * column_index
@@ -387,7 +387,7 @@ if __name__ == '__main__':
 				pose_string += ' not in bounds {0:5.3f}, {1:5.3f}'.format(theta['min'], theta['max'])
 			logging.info(pose_string)
 
-		for index, theta_description  in enumerate(thetas.items()[3:]):
+		for index, theta_description  in enumerate(list(thetas.items())[3:]):
 			theta_name, theta = theta_description
 			column_index = index // 9
 			row_index = index - 9 * column_index
